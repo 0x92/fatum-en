@@ -21,3 +21,7 @@ Commands for Points generation:
 /getattractor - will send you an attractor point. For it's generation a few thousands of quantum-random points will be created and then program will find an area with maximum density of these points and calculate it's center as an attractor.
 /getrepeller -  The opposite of the attractor point; A place with the minimum density of the point will be found.
 /getpair - will send you both attractor and repeller points at once.
+
+Attractors power:
+
+The power of the attractor is a relative coefficient to verify that the attractor is generated correctly. It is based on the ratio between the density of points near the attractor and in the entire search zone as a whole. In theory, if it is less than two, then it is difficult to call it an anomaly. For repellers, on the contrary, there the coefficient should be less than 0.6.
