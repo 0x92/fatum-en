@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Collections;
 using System.Diagnostics;
+using System.Globalization;
 
 
 namespace Fatumbot
@@ -32,7 +33,7 @@ namespace Fatumbot
         public static int errs = 0;
         public static double deflat = 51.5084019;
         public static double deflon = -0.1278297;
-        public static int radius = 10000;
+        public static int radius = 5000;
         public static string teletoken;
         public static string ProxyURL;
         public static string Proxylogin;
@@ -46,7 +47,9 @@ namespace Fatumbot
         public static string rnsource = "QRNG";
         public static string mntskey;
         public static string logpath;
+
         public static NumberFormatInfo nfi = new NumberFormatInfo();
+        
 
         public static string[] SplitIt1(string buf)
         {
@@ -153,7 +156,7 @@ namespace Fatumbot
 
 
             }
-            catch (Exception e) { Console.WriteLine("Pseudorandom point generation error: (" + lat.ToString() + ", " + lon.ToString() + ", " + radius.ToString()); }
+            catch (Exception e) { Console.WriteLine("Pseudorandom point generation error: (" + lat.ToString() + ", " + lon.ToString() + ", " + radius.ToString()+")"); }
             return result;
         }
 
@@ -942,6 +945,59 @@ namespace Fatumbot
                     }
                     catch (Exception e) { Console.WriteLine("setradius command processing error" + Environment.NewLine + e.Message.ToString()); }
                 }
+                else if ((message.Text.Contains("setradius ")))
+                {
+                    try
+                    {
+                        if (usessions.ContainsKey(message.Chat.Id) == false)
+                        {
+                            int u = usessions.Count;
+                            usessions.Add(message.Chat.Id, u);
+                            SetDefault(u);
+                        }
+                        string nr = message.Text;
+                        string nrd = @"/setradius ";
+                    nr = nr.Replace(nrd, "");
+                    int tmprad = 3000;
+                    if (Int32.TryParse(nr, out tmprad))
+                    {
+                        if (tmprad > 1000000) { await Bot.SendTextMessageAsync(message.Chat.Id, "Maximum radius is 1000000 m"); }
+                        else if (tmprad < 1000) { await Bot.SendTextMessageAsync(message.Chat.Id, "Minimum radius is 1000 m"); }
+                        else
+                        {
+                            {
+                                upresets[(int)usessions[message.Chat.Id], 4] = (tmprad * appikm) / 1000;
+                                if (upresets[(int)usessions[message.Chat.Id], 4] < minappi) { upresets[(int)usessions[message.Chat.Id], 4] = minappi; }
+                                upresets[(int)usessions[message.Chat.Id], 3] = 0;
+                                upresets[(int)usessions[message.Chat.Id], 0] = tmprad;
+                                bool issent = false;
+                                int rtr = 0;
+                                while ((issent == false) && (rtr < 5))
+                                {
+                                    try
+                                    {
+                                        await Bot.SendTextMessageAsync(message.Chat.Id, "Radius changed.");
+                                        issent = true;
+                                    }
+                                    catch (Exception e) { issent = false; rtr++; }
+                                }
+                            }
+                          
+                }
+
+                    } else { await Bot.SendTextMessageAsync(message.Chat.Id, "Incorrect value."); }
+                    //logging 
+                    string buf1 = "";
+                    if (message.From.FirstName != null) { buf1 = message.From.FirstName.ToString() + " "; }
+                    if (message.From.LastName != null) { buf1 += message.From.FirstName.ToString() + " "; }
+                    if (message.From.Username != null) { buf1 += " (" + message.From.Username.ToString() + ") "; }
+
+                    System.IO.File.AppendAllText(logpath, message.Date.ToString() + " " + message.From.Id.ToString() + " " + buf1
+                           + "changed radius: " + tmprad.ToString() + Environment.NewLine);
+                        //logging
+                    }
+                    catch (Exception e) { Console.WriteLine("radius setting error " + Environment.NewLine + e.Message.ToString()); }
+                }
                 else if ((message.Text == "/setdefault"))
                 {
                     try
@@ -1183,39 +1239,9 @@ namespace Fatumbot
                         }
                         catch (Exception e) { Console.WriteLine("radius setting error " + Environment.NewLine + e.Message.ToString()); }
                     }
-                    else
-                    {
-                        string buf1 = "";
-                        if (message.From.FirstName != null) { buf1 = message.From.FirstName.ToString() + " "; }
-                        if (message.From.LastName != null) { buf1 += message.From.FirstName.ToString() + " "; }
-                        if (message.From.Username != null) { buf1 += " (" + message.From.Username.ToString() + ") "; }
-                        try
-                        {
-                            if (message.Text.Contains("mnts") == false)
-                            {
-                                System.IO.File.AppendAllText("unprocessed.txt", message.Date.ToString() + " " + message.Chat.Id.ToString() + " " + message.From.Id.ToString() + " " + buf1
-                                         + "said: " + message.Text + Environment.NewLine);
-                            }
-                        }
-                        catch (Exception e) { Console.WriteLine("uprocessed message error " + Environment.NewLine + e.Message.ToString()); }
-                    }
+
                 }
-                else
-                {
-                    string buf1 = "";
-                    if (message.From.FirstName != null) { buf1 = message.From.FirstName.ToString() + " "; }
-                    if (message.From.LastName != null) { buf1 += message.From.FirstName.ToString() + " "; }
-                    if (message.From.Username != null) { buf1 += " (" + message.From.Username.ToString() + ") "; }
-                    try
-                    {
-                        if (message.Text.Contains("mnts") == false)
-                        {
-                            System.IO.File.AppendAllText("unprocessed.txt", message.Date.ToString() + " " + message.Chat.Id.ToString() + " " + message.From.Id.ToString() + " " + buf1
-                                 + "said: " + message.Text + Environment.NewLine);
-                        }
-                    }
-                    catch (Exception e) { Console.WriteLine("uprocessed message error " + Environment.NewLine + e.Message.ToString()); }
-                }
+               
             }
             isbusy = false;
         }
@@ -1253,35 +1279,6 @@ namespace Fatumbot
                             catch (Exception ex) { Console.WriteLine("chat recognition error " + Environment.NewLine + ex.Message.ToString()); }
                         }
 
-                        if ((message.Type == Telegram.Bot.Types.Enums.MessageType.Location) && (banned.ContainsKey(message.Chat.Id.ToString()) == false))
-                        {
-                            string buf = "";
-                            buf += @"http://wikimapia.org/#lang=ru&lat=";
-                            buf += message.Location.Latitude.ToString("#0.000000", System.Globalization.CultureInfo.InvariantCulture) +
-                            "&lon=" + message.Location.Longitude.ToString("#0.000000", System.Globalization.CultureInfo.InvariantCulture) + "&z=19&m=b";
-
-                            string buf1 = "";
-                            if (message.From.FirstName != null) { buf1 = message.From.FirstName.ToString() + " "; }
-                            if (message.From.LastName != null) { buf1 += message.From.FirstName.ToString() + " "; }
-                            if (message.From.Username != null) { buf1 += " (" + message.From.Username.ToString() + ") "; }
-
-                            System.IO.File.AppendAllText("unprocessed.txt", message.From.Id.ToString() + " " + buf1
-                                  + "sent location: " + buf + Environment.NewLine);
-
-                        }
-                        else if ((message.Type == Telegram.Bot.Types.Enums.MessageType.Text) && (banned.ContainsKey(message.Chat.Id.ToString()) == false))
-                        {
-                            string buf1 = "";
-                            if (message.From.FirstName != null) { buf1 = message.From.FirstName.ToString() + " "; }
-                            if (message.From.LastName != null) { buf1 += message.From.FirstName.ToString() + " "; }
-                            if (message.From.Username != null) { buf1 += " (" + message.From.Username.ToString() + ") "; }
-
-                            if (message.Text.Contains("mnts") == false)
-                            {
-                                System.IO.File.AppendAllText("unprocessed.txt", message.Date.ToString() + " " + message.Chat.Id.ToString() + " " + message.From.Id.ToString() + " " + buf1
-                                         + "said: " + message.Text + Environment.NewLine);
-                            }
-                        }
                     }
                     offset = update.Id + 1;
 
@@ -1374,7 +1371,7 @@ namespace Fatumbot
             {
                 System.IO.File.WriteAllText("banned.txt", "");
             }
-            string extxt = System.IO.File.ReadAllText("banned.txt");
+                string extxt = System.IO.File.ReadAllText("banned.txt");
             string[] ban = SplitIt(extxt, ",");
             foreach (string bn in ban)
             {
@@ -1405,6 +1402,9 @@ namespace Fatumbot
                 }
                 catch (Exception ex) { }
             }
+            if (System.IO.File.Exists("unprocessed.txt"))
+            { try { System.IO.File.Delete("unprocessed.txt"); } catch (Exception ec) { } }
+
 
             TelegramBotClient Bot = new TelegramBotClient(teletoken);
             if (ProxyURL != "none")
